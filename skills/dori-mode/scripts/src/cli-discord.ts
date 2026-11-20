@@ -9,7 +9,7 @@ import type { FlowDeps } from "./done-flow.ts";
 import { Discord } from "./messenger/discord.ts";
 import { DiscordChannels, inboundContext } from "./messenger/discord-channels.ts";
 import type { GatewayClock, GatewaySocket } from "./messenger/discord-gateway.ts";
-import { routeDiscordAskReply } from "./messenger/discord-ask-mailbox.ts";
+import { routeDiscordAskReply, routeUnreferencedDiscordAskText } from "./messenger/discord-ask-mailbox.ts";
 import { type DiscordAskReceiverPublication, openDiscordAskReceiver } from "./messenger/discord-ask-receiver.ts";
 import {
   discordInbound,
@@ -136,7 +136,10 @@ export const discordInboundCommand = async (
     // Context and the owner line remain one stdout group, after the owe is published.
     const emit: Emit = async (message, signal) => {
       signal?.throwIfAborted();
-      if (routeDiscordAskReply(stateDir, message, ownerId)) {
+      if (
+        routeDiscordAskReply(stateDir, message, ownerId) ||
+        (message.unreferencedText && routeUnreferencedDiscordAskText(stateDir, message, ownerId))
+      ) {
         await markDiscordInboundSeen(discord, message);
         return;
       }

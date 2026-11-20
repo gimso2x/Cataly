@@ -15,6 +15,7 @@ export type Message = {
   message_reference?: { message_id?: string; channel_id?: string; type?: number };
   /** Present on replies, or null when Discord could not load the target (for example, after deletion). */
   referenced_message?: { id?: string; channel_id?: string; author?: { id?: string }; content?: string } | null;
+  message_snapshots?: unknown;
 };
 /** One owner attachment, retaining Discord field names and the exact expiring signed CDN URL. */
 type InboundAttachment = {
@@ -40,6 +41,7 @@ export type DiscordInbound = {
   text: string;
   replyTo: InboundReply | null;
   attachments: InboundAttachment[];
+  unreferencedText?: true;
 };
 /**
  * Delivers one owner message; the cursor moves past it only after this returns or, when it returns a promise, after
@@ -171,6 +173,13 @@ export const toInbound = (message: Message): DiscordInbound => {
     text: message.content,
     replyTo,
     attachments: toAttachments(message),
+    ...(message.type === 0 &&
+    message.message_reference === undefined &&
+    replied === undefined &&
+    message.message_snapshots === undefined &&
+    (message.attachments === undefined || (Array.isArray(message.attachments) && message.attachments.length === 0))
+      ? { unreferencedText: true }
+      : {}),
   };
 };
 

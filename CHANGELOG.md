@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Render eligible Discord ASK choices as native buttons, with the checked option labeled as recommended. A single pending text-capable question also accepts ordinary owner text in its exact Discord channel.
+
+- After three minutes with no answer to a posted Discord ASK, submit its single explicit recommendation as a timeout, not an owner reply.
+
+- Restore Discord ASK for Dori leads already using an environment-supplied bot token when the standard private token file is absent. Automatic delivery still requires the same live receiver and a unique explicit channel; lane routing and saved settings do not change.
+
 - Opt-in conversation recall (`recall.enabled`, default off): Discord and Telegram owner messages and the lead's `dori send` replies are kept in a private `<stateDir>/recall.sqlite` with credential-shaped strings redacted, a 2000-character cap and `retentionDays` (default 30). An owner message that points back at an earlier conversation (English, Korean or Japanese phrases) ends its record group with `INBOUND_RECALL`: up to four rows of the same channel or chat ranked by word rarity, within about 3 KB, labelled as data rather than instructions, and an explicit empty result when nothing matched. `dori recall <query> [--thread REF]` searches on demand and `dori recall purge` clears the ledger. Slack intake is not recorded.
 
 - Bound native OMP keeps pending custom notices with their original transcript across `/new`, `/clear`, and session switches. An unchanged reload retains eligible notices and passive next-turn payloads without restarting old provider work; a changed transcript drops them. External delivery waits for transition and rollback reconciliation, and CI exercises ownership against the bound native source.
@@ -291,3 +297,5 @@ The Sustainable Use License, OMP attribution in `LICENSE.omp-dori`, `NOTICE`, pu
 - Unreleased (source only): Reuse the existing native goal or durable workflow owner before creating an objective. Preserve paused ownership until the user explicitly directs resumption, and keep questions, external waits and availability monitoring from creating duplicate goals.
 
 Setup now offers configuration-only previews, preserves owner JSON/YAML values outside the existing managed keys, rejects observed concurrent edits, and atomically publishes owned configuration with permission/group preservation and redacted effective-reader readback. Shared-writable targets and linked configuration files now hold with repair guidance; source directory aliases retain physical-target checks; invalid UTF-8 source rewrites are refused, while unchanged configuration bytes are retained. Consumer reader unavailability is reported without blocking recovery. Source and consumer setup do not activate models, accounts or services; saved bytes are reported separately from inherited overrides and unstarted native settings (omp-superagent comparison F64).
+
+- Native lane close refuses a confirmed working or blocked main (including approval waits) and, once close preparation binds its PID/startTicks/bootId, waits for that kernel incarnation to exit before thread or worktree cleanup on herdr/hc. A missing pane or wall-clock shift is not an exit receipt; failed reads after preparation stay held. HC prepared-close recovery requires complete observed foreground arguments; a name alone or malformed argv stays held. Unknown first-run legacy closes retain their existing behavior. This protects observed living work, not full quiescence: unknown initial lanes, owned async jobs, queued input and services still need native read-only/unknown/quiescence APIs.

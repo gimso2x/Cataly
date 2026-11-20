@@ -67,7 +67,10 @@ export async function automaticDiscordAskRoute(
   // Never let a relative override resolve against a lane's project directory.
   if (!isAbsolute(home)) return undefined;
   const tokenFile = join(home, "discord-token");
-  const token = readPrivateAskFile(tokenFile, 16_384)?.trim();
+  // Older lead processes may already have the bot credential without the standard token file.
+  // Lanes never use inherited messenger credentials, and discovery still requires a matching live receiver.
+  const fileToken = readPrivateAskFile(tokenFile, 16_384);
+  const token = (fileToken ?? (role === "dori" ? process.env["DORI_DISCORD_TOKEN"] : undefined))?.trim();
   if (!token || !/^[\w.-]+$/.test(token)) return undefined;
   const target = role === "lane" ? await laneChannel(stateDir, sessionId, binding) : undefined;
   if (role === "lane" && !target) return undefined;

@@ -3,7 +3,10 @@ import { join } from "node:path";
 import { withDeliveryLock } from "../skills/dori-mode/scripts/src/delivery-lock.ts";
 import { isDiscordWakePending } from "../skills/dori-mode/scripts/src/discord-lane-wake-pending.ts";
 import { readPaneState } from "../skills/dori-mode/scripts/src/lane-state.ts";
-import { routeDiscordAskReply } from "../skills/dori-mode/scripts/src/messenger/discord-ask-mailbox.ts";
+import {
+  routeDiscordAskReply,
+  routeUnreferencedDiscordAskText,
+} from "../skills/dori-mode/scripts/src/messenger/discord-ask-mailbox.ts";
 import {
   type DiscordAskReceiverPublication,
   discordAskReceivers,
@@ -353,7 +356,10 @@ export class DiscordLane {
           const { receiver: scopedIntake, discord } = intake;
           await scopedIntake.poll(async (message) => {
             signal.throwIfAborted();
-            if (routeDiscordAskReply(stateDir, message, explicit.owner)) {
+            if (
+              routeDiscordAskReply(stateDir, message, explicit.owner) ||
+              (message.unreferencedText && routeUnreferencedDiscordAskText(stateDir, message, explicit.owner))
+            ) {
               await markDiscordInboundSeen(discord, message);
               return;
             }

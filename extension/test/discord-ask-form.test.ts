@@ -104,12 +104,13 @@ describe("Discord native ASK projection", () => {
     });
   });
 
-  test("accepts raw single-select values but rejects labels and disabled options", async () => {
+  test("accepts single-select values and enabled labels, but rejects disabled choices", async () => {
     const form = await project(`<form><label for="color">Pick a color</label><select id="color" name="color">
       <option value="blue">Ocean blue</option><option disabled value="red">Retired red</option>
     </select></form>`);
     expect(parseAskAnswer(form, "blue")).toEqual({ data: { color: "blue" } });
-    expect(parseAskAnswer(form, "Ocean blue")).toEqual({
+    expect(parseAskAnswer(form, "Ocean blue")).toEqual({ data: { color: "blue" } });
+    expect(parseAskAnswer(form, "Retired red")).toEqual({
       error: "color: Choose only enabled values shown in the form.",
     });
     expect(parseAskAnswer(form, '{"color":"red"}')).toEqual({

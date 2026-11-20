@@ -1,13 +1,9 @@
-import { randomUUID } from "node:crypto";
 import { isAbsolute, join } from "node:path";
-import {
-  openDiscordAskMailbox,
-  readPrivateAskFile,
-} from "../skills/dori-mode/scripts/src/messenger/discord-ask-mailbox.ts";
+import { readPrivateAskFile } from "../skills/dori-mode/scripts/src/messenger/discord-ask-mailbox.ts";
 import { isDiscordSnowflake } from "../skills/dori-mode/scripts/src/messenger/discord-inbound-state.ts";
-import { Discord } from "../skills/dori-mode/scripts/src/messenger/discord.ts";
-import { fetchHttp } from "../skills/dori-mode/scripts/src/messenger/http.ts";
-import { type AskData, parseAskAnswer, projectAskForm } from "./discord-ask-form.ts";
+import type { AskData } from "./discord-ask-form.ts";
+import type { AskButtonSocket } from "./discord-ask-interactions.ts";
+import { askOnDiscord } from "./discord-ask-remote.ts";
 
 export type DiscordAskRoute = {
   channel: string;
@@ -61,84 +57,12 @@ export function discordAskToken(route: DiscordAskRoute): string {
   return token;
 }
 
-const requestSignal = (signal: AbortSignal) => AbortSignal.any([signal, AbortSignal.timeout(10_000)]);
-
-async function askOnDiscord(
-  html: string,
-  { route, stillConnected }: PendingAsk,
-  signal: AbortSignal,
-  warn: (message: string) => void,
-) {
-  const form = await projectAskForm(html);
-  if (!form) {
-    warn("This ASK form needs the local OMP dialog; nothing was posted to Discord.");
-    return;
-  }
-  const token = discordAskToken(route);
-  signal.throwIfAborted();
-  const discord = new Discord(fetchHttp, { now: Date.now, sleep: Bun.sleep }, token);
-  const path = `/channels/${route.channel}/messages`;
-  const mentions = { parse: [], replied_user: false };
-  const post = async (content: string, reference?: string) =>
-    discord.call<{ id: string }>(
-      "POST",
-      path,
-      {
-        content,
-        allowed_mentions: mentions,
-        nonce: randomUUID().replaceAll("-", "").slice(0, 24),
-        enforce_nonce: true,
-        ...(reference ? { message_reference: { message_id: reference, fail_if_not_exists: true } } : {}),
-      },
-      requestSignal(signal),
-    );
-  // Discord can show a newly created message before the POST has returned its ID.
-  // Publish only the shell until replies to its exact message ID have an owner.
-  if (stillConnected && !(await stillConnected())) return;
-  const question = await post("Preparing a Cataly ASK. Wait for the question before replying.");
-  if (!isDiscordSnowflake(question?.id)) throw new Error("Discord did not confirm the ASK message ID");
-  const mailbox = openDiscordAskMailbox(route.receiverStateDir, route.channel, question.id, route.owner);
-  const seen = new Set<string>();
-  try {
-    if (stillConnected && !(await stillConnected())) {
-      warn("The Discord ASK connection changed; answer in the local dialog.");
-      return;
-    }
-    await discord.call(
-      "PATCH",
-      `${path}/${question.id}`,
-      {
-        content: `**Cataly ASK**\n${form.summary}\n\nReply to this message with the answer.`,
-        allowed_mentions: mentions,
-      },
-      requestSignal(signal),
-    );
-    while (!signal.aborted) {
-      for (const reply of mailbox.replies(seen)) {
-        signal.throwIfAborted();
-        seen.add(reply.id);
-        const answer = parseAskAnswer(form, reply.text);
-        if ("data" in answer) return answer;
-        try {
-          await post(
-            `ASK answer not accepted: ${answer.error}\nReply to the original ASK message to try again.`,
-            reply.id,
-          );
-        } catch {
-          if (!signal.aborted) warn("Discord did not confirm the ASK correction message.");
-        }
-      }
-      await Bun.sleep(250);
-    }
-  } finally {
-    mailbox.close();
-  }
-}
-
 /** Arms only the exact native ASK forms, never an approval or another dialog. */
 export class DiscordAsk {
   #armed?: { wrap: FormDialog; requests: Map<string, PendingAsk>; restore(): void };
   #signal = new AbortController();
+
+  constructor(private readonly openSocket?: AskButtonSocket) {}
 
   clear(): void {
     this.#armed?.restore();
@@ -223,10 +147,22 @@ export class DiscordAsk {
       const signals = [finished.signal, lifecycle, ...(options?.signal ? [options.signal] : [])];
       const signal = AbortSignal.any(signals);
       const native = Promise.resolve().then(() => original.call(ui, html, { ...options, signal }));
-      const remote = askOnDiscord(html, selected, signal, warn).catch(() => {
-        if (!signal.aborted) warn("Discord ASK could not be completed; the local dialog is still available.");
-        return undefined;
-      });
+      const remote = Promise.resolve()
+        .then(() =>
+          askOnDiscord({
+            html,
+            route: selected.route,
+            token: discordAskToken(selected.route),
+            stillConnected: selected.stillConnected,
+            signal,
+            warn,
+            openSocket: this.openSocket,
+          }),
+        )
+        .catch(() => {
+          if (!signal.aborted) warn("Discord ASK could not be completed; the local dialog is still available.");
+          return undefined;
+        });
       try {
         return await Promise.race([native, remote.then((answer) => answer ?? native)]);
       } finally {
