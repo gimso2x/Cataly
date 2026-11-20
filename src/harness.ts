@@ -15,6 +15,7 @@ import { HerdrRuntime } from "./runtime/herdr/index.ts";
 import { Runtimes } from "./runtime/registry.ts";
 import { ompStateDir } from "./runtime/omp.ts";
 import { isOmpArgv } from "./runtime/omp-argv.ts";
+import { ownerPromptSection } from "./owner.ts";
 import { type RuntimeChoice, readRuntimeChoice } from "./runtime/select.ts";
 import { Store } from "./store.ts";
 import { type HostLoad, KEY_RE, type Role, reservedKey } from "./store-types.ts";
@@ -133,6 +134,18 @@ export const fill = (template: string, vars: Record<string, string>): string =>
 
 export const prompt = (name: string, vars: Record<string, string>): string =>
   fill(readFileSync(promptFile(name), "utf8"), vars);
+
+/** A role session's prompt with `{{dori}}` filled; the lead's ends with the owner profile when one exists (owner.ts). */
+export function rolePrompt(d: Deps, name: "lead.md" | "duty.md"): string {
+  const text = readFileSync(promptFile(name), "utf8").replaceAll("{{dori}}", d.doriCmd);
+  const owner = name === "lead.md" ? ownerPromptSection(d.store.root) : undefined;
+  return owner === undefined
+    ? text
+    : `${text.trimEnd()}
+
+${owner}
+`;
+}
 
 /** The roles `dori role` registers by hand; `dori up` also registers the two loop sessions. */
 export const ROLES: readonly Role[] = ["lead", "duty"];

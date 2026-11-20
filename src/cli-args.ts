@@ -35,6 +35,10 @@ export const USAGE = `dori harness - a proactive multi-session harness on herdr 
   dori harness migrate [--to hc|herdr] (--lane K | --role lead|duty|duty-loop|hourly-loop | --all) [--dry-run]
                        [--wait-minutes N] [--resume]  hand sessions over to another runtime; MIGRATED, SKIP, DEFERRED,
                                                       or MIGRATE_ROLLBACK (exit 3) per session
+  dori harness owner init | show | snapshot | check   opt-in owner profile ($DORI_HOME/owner.md) at the end of the
+                                                      lead's prompt: create it, print what the lead reads, keep
+                                                      today's copy, validate it (OWNER_OK or OWNER_PROBLEM, exit 1)
+  dori harness owner diff [DATE] | revert DATE        compare with or restore a dated snapshot in owner-history/
   dori harness status
 
 --text may be omitted to read the message from stdin.

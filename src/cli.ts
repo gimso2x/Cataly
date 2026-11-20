@@ -12,6 +12,7 @@ import { send, type SendResult } from "./inbox.ts";
 import { inboxList, releaseHeld, sendToShell } from "./inbox-held.ts";
 import { Refusal } from "./refusal.ts";
 import { runMigrate } from "./migrate.ts";
+import { runOwner } from "./cli-owner.ts";
 import { refText } from "./refs.ts";
 import { ConfigError as RuntimeConfigError, RuntimeChoiceError } from "./runtime/select.ts";
 import { parseRef } from "./runtime/types.ts";
@@ -35,6 +36,7 @@ const COMMANDS = new Set([
   "migrate",
   "lock",
   "priority",
+  "owner",
 ]);
 
 /** Prints the line for a delivery that did not land now and returns the exit code: HELD 3, everything else 0. */
@@ -152,6 +154,8 @@ export async function main(argv: readonly string[], d: Deps = defaultDeps()): Pr
       return runLock(d, a);
     case "priority":
       return runPriority(d, a);
+    case "owner":
+      return runOwner(d, a, x);
     case "status":
       status(d);
       return 0;

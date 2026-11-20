@@ -1,7 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { shq } from "./delivery.ts";
-import { agentCommand, harnessLaunchEnv, promptFile, type Deps } from "./harness.ts";
+import { agentCommand, harnessLaunchEnv, rolePrompt, type Deps } from "./harness.ts";
 import { lockEnv } from "./lock.ts";
 import { lockLines } from "./lock-list.ts";
 import { refText } from "./refs.ts";
@@ -10,12 +10,11 @@ import { openSession, type SessionRef } from "./runtime/types.ts";
 import { RuntimeChoiceError } from "./runtime/select.ts";
 import { laneBoard } from "./status-view.ts";
 
-function renderPrompt(d: Deps, name: string): string {
+function renderPrompt(d: Deps, name: "lead.md" | "duty.md"): string {
   const dir = join(d.store.root, "prompts");
   mkdirSync(dir, { recursive: true });
-  const src = readFileSync(promptFile(name), "utf8").replaceAll("{{dori}}", d.doriCmd);
   const out = join(dir, name);
-  writeFileSync(out, src);
+  writeFileSync(out, rolePrompt(d, name));
   return out;
 }
 
@@ -27,7 +26,8 @@ function renderPrompt(d: Deps, name: string): string {
 export async function up(d: Deps, cwd: string): Promise<void> {
   const rt = d.runtimes.default;
   const env = harnessLaunchEnv(d);
-  const agent = (name: string) => `${agentCommand(d, "dori")} --append-system-prompt ${shq(renderPrompt(d, name))}`;
+  const agent = (name: "lead.md" | "duty.md") =>
+    `${agentCommand(d, "dori")} --append-system-prompt ${shq(renderPrompt(d, name))}`;
   // herdr ignores the group of a workspace-root session and reports the new workspace as the lead ref's group.
   const lead = await openSession(
     rt,

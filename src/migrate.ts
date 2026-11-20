@@ -7,7 +7,7 @@ import {
   harnessLaunchEnv,
   isOmpAgentCommand,
   prompt,
-  promptFile,
+  rolePrompt,
   type Deps,
 } from "./harness.ts";
 import { Refusal } from "./refusal.ts";
@@ -67,7 +67,7 @@ function roleSubject(d: Deps, role: Role, from: SessionRef): Subject {
     kind: "role",
     from,
     cwd: process.cwd(),
-    brief: () => readFileSync(promptFile(name), "utf8").replaceAll("{{dori}}", d.doriCmd),
+    brief: () => rolePrompt(d, name),
     logTail: [],
     spec: (group) => ({
       name: role === "lead" ? "dori" : "duty",

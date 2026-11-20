@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an opt-in owner profile, `$DORI_HOME/owner.md`: dated Preferences, Current interests, Decisions, Avoid and Update log lines appended to the lead's prompt (cut at 16384 bytes on a line boundary) under a header that ranks them below safety and authorization rules and grants no permission. With `ownerDistillHour` set, the hourly loop asks the lead once a day to distill the day's conversation into it; `dori harness owner init|show|snapshot|check|diff|revert` creates, inspects, validates and restores it from dated snapshots. Without the file and setting nothing changes.
+
 - Bound native OMP keeps pending custom notices with their original transcript across `/new`, `/clear`, and session switches. An unchanged reload retains eligible notices and passive next-turn payloads without restarting old provider work; a changed transcript drops them. External delivery waits for transition and rollback reconciliation, and CI exercises ownership against the bound native source.
 
 - Append compact role guidance once per root Dori/lane prompt, preserving existing host and ULW composition. Plain and child sessions are unchanged, and lane bookkeeping remains Sol-only.

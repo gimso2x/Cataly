@@ -127,6 +127,8 @@ export type LoopRun = {
   started: string[];
   held: string[];
   asked: string[];
+  /** The `[OWNER-DISTILL <date>]` request for the lead, on the one run a day that asks for it (owner-distill.ts). */
+  distill?: string;
 };
 
 export const KEEP_RUNS = 168;

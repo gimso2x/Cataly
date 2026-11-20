@@ -183,7 +183,7 @@ claimed here. A merge to `main` does not update the published preview.
 | [Dori operating rules](skills/dori-mode/SKILL.md)                           | [Scheduling and backlog](docs/hourly-loop.md)                                   |
 | [Lane commands and configuration](skills/dori-mode/references/scripts.md)   | [Shared locks and lane priority](docs/locks.md)                                 |
 | [Done protocol](skills/dori-mode/references/done-protocol.md)               | [Opt-in paid Discord voice assistant (current source)](docs/discord-voice.md)   |
-| [Changelog](CHANGELOG.md)                                                   |                                                                                 |
+| [Changelog](CHANGELOG.md)                                                   | [Opt-in owner profile for the lead](docs/owner-profile.md)                      |
 
 ## Contributing
 
