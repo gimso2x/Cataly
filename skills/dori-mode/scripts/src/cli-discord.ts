@@ -178,13 +178,9 @@ export const discordInboundCommand = async (
         ? `${formatDiscordInbound(message)}\n${formatInboundContext(message, await where(message.channel))}`
         : formatDiscordInbound(message);
       // A thread shares its parent channel's space; lane-routed messages never reach the lead, so they are not kept.
-      const recalled = recall?.owner({
-        platform: "discord",
-        channel: intake.parentFor(message.channel) ?? message.channel,
-        thread: message.channel,
-        ref: message.message,
-        text: message.text,
-      });
+      const { channel: thread, message: ref } = message;
+      const space = intake.parentFor(thread) ?? thread;
+      const recalled = recall?.owner({ platform: "discord", channel: space, thread, ref, text: message.text });
       const text = recalled ? `${owner}\n${recalled}` : owner;
       await recordOwes(stateDir, text, Date.now(), signal);
       signal?.throwIfAborted();
