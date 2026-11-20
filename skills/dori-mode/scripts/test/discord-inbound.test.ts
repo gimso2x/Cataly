@@ -28,7 +28,15 @@ test("cold start baselines latest history, then admits only owner text in the ex
   );
   await intake.poll((message) => received.push(message));
   expect(received).toEqual([
-    { channel: "20", message: "101", reference: null, text: 'hello\n"quoted" $(data)', replyTo: null, attachments: [] },
+    {
+      channel: "20",
+      message: "101",
+      reference: null,
+      text: 'hello\n"quoted" $(data)',
+      replyTo: null,
+      attachments: [],
+      unreferencedText: true,
+    },
     {
       channel: "20",
       message: "107",
