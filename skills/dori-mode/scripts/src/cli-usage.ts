@@ -86,6 +86,8 @@ export const USAGE = `dori <command> [options]
   voice discord                       opt-in owner-only voice assistant (voice.enabled in config; paid provider usage)
   channel discord set <channel> --purpose T | clear <channel> | list
                                        the operator's purpose note per channel or thread, shown by inbound --context
+  recall <query> [--thread REF] [--limit N] | recall purge
+                                       opt-in (recall.enabled): search the conversation ledger, REF discord:ID or telegram:CHAT[/TOPIC]
   presence <slack|discord>             keep the account shown as online until stopped
   transcribe <audio-file|url>           run hooks.transcribe and print the text; HTTP(S) downloads are private and temporary
   inbound slack|telegram|discord [--loop MIN] [--gateway] [--context]

@@ -23,6 +23,7 @@ import { discordInboundQueue } from "./messenger/discord-inbound-queue.ts";
 import { discordInboundEnv } from "./messenger/discord-inbound-state.ts";
 import { discordLaneRoute, openDiscordLaneInbox } from "./messenger/discord-lane-inbox.ts";
 import { DeliveryUncertainError, fetchHttp, RateLimitError } from "./messenger/http.ts";
+import { conversationRecall } from "./messenger/recall-ledger.ts";
 import { recordOwes } from "./owes.ts";
 import { realClock } from "./run.ts";
 
@@ -131,6 +132,7 @@ export const discordInboundCommand = async (
       );
     const watching = all ? "all" : intake.channels().join(",");
     const where = context ? inboundContext(discord, new DiscordChannels(stateDir), realClock.now) : undefined;
+    const recall = conversationRecall(deps.config, (warning) => console.log(`WARN ${warning}`));
     // Context and the owner line remain one stdout group, after the owe is published.
     const emit: Emit = async (message, signal) => {
       signal?.throwIfAborted();
@@ -169,9 +171,18 @@ export const discordInboundCommand = async (
           return;
         }
       }
-      const text = where
+      const owner = where
         ? `${formatDiscordInbound(message)}\n${formatInboundContext(message, await where(message.channel))}`
         : formatDiscordInbound(message);
+      // A thread shares its parent channel's space; lane-routed messages never reach the lead, so they are not kept.
+      const recalled = recall?.owner({
+        platform: "discord",
+        channel: intake.parentFor(message.channel) ?? message.channel,
+        thread: message.channel,
+        ref: message.message,
+        text: message.text,
+      });
+      const text = recalled ? `${owner}\n${recalled}` : owner;
       await recordOwes(stateDir, text, Date.now(), signal);
       signal?.throwIfAborted();
       console.log(text);

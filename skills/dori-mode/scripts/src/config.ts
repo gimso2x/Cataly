@@ -11,6 +11,7 @@ import type { RuntimeKind } from "../../../../src/runtime/types.ts";
 import { repoIdentities } from "./config-identities.ts";
 import { type DoctorOptions, validDoctorOptions } from "./doctor-config.ts";
 import { type LaunchConfig, launchConfig } from "./launch-selection.ts";
+import { type RecallSettings, recallSettingsError } from "./messenger/recall-text.ts";
 import type { SupervisionOptions } from "./supervision-observe.ts";
 import type { CommitIdentity } from "./verify-pr-check.ts";
 import type { VoiceSettings } from "./voice/settings.ts";
@@ -65,6 +66,7 @@ export type DoriConfig = LaunchConfig & {
   readonly supervision: SupervisionOptions;
   readonly prAutoTrack: boolean; // opt-in: claim and checkpoint PR links are tracked for `dori pr watch`
   readonly doctor?: DoctorOptions;
+  readonly recall?: RecallSettings; // opt-in conversation ledger and recall (references/scripts.md)
 };
 
 export const defaultConfig = (home = homedir()): DoriConfig => ({
@@ -182,6 +184,8 @@ export const loadConfig = async (path = configPath(), home = homedir(), env = pr
     throw new ConfigError("invalid doctor: expected an object with an optional ignore array of known check IDs");
   const policyError = freshnessError(raw.freshness);
   if (policyError) throw new ConfigError(policyError);
+  const recallError = recallSettingsError(raw.recall);
+  if (recallError) throw new ConfigError(recallError);
   if (raw.threadDonePolicy !== undefined && !["every-lane", "last-lane"].includes(raw.threadDonePolicy))
     throw new ConfigError("invalid threadDonePolicy: expected every-lane or last-lane");
   if (raw.prAutoTrack !== undefined && typeof raw.prAutoTrack !== "boolean")

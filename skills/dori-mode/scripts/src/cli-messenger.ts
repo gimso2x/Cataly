@@ -4,16 +4,16 @@ import { existsSync } from "node:fs";
 import { type Command, die, envSlackToken, every, messageText, slackAuth } from "./cli-context.ts";
 import { channelDiscord, reactDiscord, sendDiscord, threadDiscord } from "./cli-discord-ops.ts";
 import { discordClock, discordInboundCommand, openDiscordSocket, untilStopped } from "./cli-discord.ts";
+import { telegramInbound } from "./cli-telegram.ts";
 import { ChannelPurposeError } from "./messenger/discord-channels.ts";
 import { discordPresence } from "./messenger/discord-presence.ts";
 import { fetchHttp, inboundPollRetryDelay, MessengerError, UnsafeMessageError } from "./messenger/http.ts";
+import { conversationRecall } from "./messenger/recall-ledger.ts";
 import { Slack } from "./messenger/slack.ts";
 import { formatSlackInbound, pollSlackInbound } from "./messenger/slack-inbound.ts";
 import { slackPresence } from "./messenger/slack-presence.ts";
 import { Telegram } from "./messenger/telegram.ts";
-import { envInt, fileTgInboundStore, telegramInboundLoop } from "./messenger/telegram-inbound.ts";
-import { formatTelegramInbound } from "./messenger/telegram-line.ts";
-import { inboundLagLog, lagOfLine, readLagTail, summarizeLag } from "./messenger/telegram-lag.ts";
+import { lagOfLine, readLagTail, summarizeLag } from "./messenger/telegram-lag.ts";
 import { slackScope, type SlackScope, ThreadLedger } from "./messenger/thread-ledger.ts";
 import { transcribe, TranscriptionError, withLocalAudio } from "./messenger/voice.ts";
 import { realClock, run } from "./run.ts";
@@ -63,7 +63,17 @@ const send: Command = async (cli) => {
     const messageId = id("edit", "message");
     const tg = new Telegram(fetchHttp, realClock, token("DORI_TELEGRAM_TOKEN"));
     if (messageId !== undefined) await tg.edit(target, messageId, text);
-    else console.log(`SENT ${await tg.send(target, text)}`);
+    else {
+      const sent = await tg.send(target, text);
+      console.log(`SENT ${sent}`);
+      conversationRecall(config, (warning) => console.error(`WARN ${warning}`))?.lead({
+        platform: "telegram",
+        channel: to,
+        thread: threadId === undefined ? to : `${to}/${threadId}`,
+        ref: String(sent),
+        text,
+      });
+    }
   } else die(`unknown platform ${platform}`);
 };
 
@@ -92,84 +102,13 @@ const presence: Command = async ({ key }) => {
   } else die("presence needs slack or discord");
 };
 
-const telegramInbound = async (stateDir: string, minutes: number): Promise<void> => {
-  const tg = new Telegram(
-    fetchHttp,
-    realClock,
-    process.env["DORI_TELEGRAM_TOKEN"] || die("DORI_TELEGRAM_TOKEN is not set"),
-  );
-  const store = fileTgInboundStore(`${stateDir}/telegram-offset`);
-  const num = (name: string): number => {
-    try {
-      return envInt(name, process.env[name]);
-    } catch (e) {
-      return die(e instanceof Error ? e.message : String(e));
-    }
-  };
-  const ownerId = num("DORI_TELEGRAM_OWNER_ID");
-  // One warning per process: a token that cannot react must not flood the receiver log on every message.
-  let reactWarned = false;
-  const groupChatId = process.env["DORI_TELEGRAM_GROUP_ID"] === undefined ? undefined : num("DORI_TELEGRAM_GROUP_ID");
-  const topicId = process.env["DORI_TELEGRAM_TOPIC_ID"] === undefined ? undefined : num("DORI_TELEGRAM_TOPIC_ID");
-  // Authentication and transport readiness must finish before advertising or consuming inbound work.
-  const identity = await tg.call<{ id?: unknown; is_bot?: unknown }>("getMe", {}).catch(() => {
-    throw new MessengerError("Telegram inbound bot identity could not be verified; check token and API access", 0);
-  });
-  if (
-    !identity ||
-    identity.is_bot !== true ||
-    typeof identity.id !== "number" ||
-    !Number.isSafeInteger(identity.id) ||
-    identity.id <= 0
-  )
-    throw new MessengerError("Telegram getMe returned an invalid bot identity", 0);
-  const webhook = await tg.call<{ url?: unknown }>("getWebhookInfo", {}).catch(() => {
-    throw new MessengerError("Telegram inbound webhook status could not be verified; check API access", 0);
-  });
-  if (typeof webhook?.url !== "string")
-    throw new MessengerError("Telegram getWebhookInfo returned an invalid webhook status", 0);
-  if (webhook.url !== "")
-    throw new MessengerError("Telegram inbound refused an active webhook; use a polling bot (webhook unchanged)", 409);
-  console.log(`INBOUND_READY telegram owner=${ownerId} group=${groupChatId ?? "-"} topic=${topicId ?? "-"}`);
-  // The INBOUND line stays exactly as monitors parse it; receive lag goes to its own jsonl.
-  const recordLag = inboundLagLog(`${stateDir}/telegram-lag.jsonl`, (m) => console.log(`WARN ${m}`.slice(0, 300)));
-  await telegramInboundLoop(
-    tg,
-    store,
-    {
-      ownerId,
-      ...(groupChatId !== undefined ? { groupChatId } : {}),
-      ...(topicId !== undefined ? { topicId } : {}),
-    },
-    minutes,
-    (i) => {
-      console.log(formatTelegramInbound(i));
-      recordLag(i, realClock.now());
-      // Read receipt: the owner sees the message was picked up the moment it is received.
-      // One reaction only (never a bubble — it would clear the typing indicator), and a
-      // failed reaction must never cost the message, so it is warned once and dropped.
-      if (i.kind === "message" && i.messageId !== undefined) {
-        const target = { chatId: i.chat, ...(i.thread !== undefined && i.thread !== 1 ? { threadId: i.thread } : {}) };
-        void tg.react(target, i.messageId, "👀").catch((e: unknown) => {
-          if (reactWarned) return;
-          reactWarned = true;
-          console.log(
-            `WARN reaction failed (${e instanceof Error ? e.message : String(e)}); still answering`.slice(0, 300),
-          );
-        });
-      }
-    },
-    (m) => console.log(`WARN ${m}`.slice(0, 300)),
-  );
-};
-
 const inbound: Command = async ({ key, loopMinutes, config, deps, values, strings }) => {
   const minutes = loopMinutes();
   const context = values["context"] === true;
   if (context && key !== "discord") die("--context is supported for discord only");
   const wake = values["wake-lanes"] === true;
   if (wake && key !== "discord") die("--wake-lanes is supported for discord only");
-  if (key === "telegram") return await telegramInbound(config.stateDir, minutes);
+  if (key === "telegram") return await telegramInbound(config, minutes);
   if (key === "discord")
     return await discordInboundCommand(deps, {
       gateway: values["gateway"] === true,

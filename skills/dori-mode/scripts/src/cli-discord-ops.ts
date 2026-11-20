@@ -5,6 +5,7 @@ import { DiscordChannels, purposeText } from "./messenger/discord-channels.ts";
 import { discordInboundEnv, isDiscordSnowflake } from "./messenger/discord-inbound-state.ts";
 import { renderDiscordTables } from "./messenger/discord-markdown.ts";
 import { fetchHttp } from "./messenger/http.ts";
+import { conversationRecall } from "./messenger/recall-ledger.ts";
 import { DISCORD_LIMIT } from "./messenger/split.ts";
 import { recordMark, recordSent } from "./owes.ts";
 import { realClock, runtimesOf } from "./run.ts";
@@ -74,6 +75,13 @@ export const sendDiscord: Command = async (cli) => {
       if (replyConfirmed) await recordSent(config.stateDir, target, reply, ids, Date.now());
     }
     console.log(`SENT ${ids.join(" ")}`);
+    // Recorded after delivery, in the space the conversation was first seen in; never fails the send.
+    conversationRecall(config, (warning) => console.error(`WARN ${warning}`))?.lead({
+      platform: "discord",
+      thread: target,
+      ref: ids.join(" "),
+      text: rawText,
+    });
   }
 };
 

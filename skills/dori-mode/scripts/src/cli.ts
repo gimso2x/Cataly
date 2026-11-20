@@ -201,6 +201,9 @@ switch (command) {
   case "pr":
     commands = (await import("./cli-pr.ts")).prCommands;
     break;
+  case "recall":
+    commands = { recall: (await import("./cli-recall.ts")).recallCommand };
+    break;
   case "voice":
     // Keep the opt-in voice graph out of unrelated command startup paths.
     commands = { voice: (await import("./cli-voice.ts")).voiceCommand };

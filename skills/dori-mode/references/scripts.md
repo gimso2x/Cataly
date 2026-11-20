@@ -69,6 +69,7 @@ Before a send/edit, a durable pending record is written. An ambiguous create or 
 | `supervision` | no ceilings by default (set wallMinutes, tokens or costUsd to enable); hung after 20 min | `freshness`, `launch`, `close` (see Supervision below) |
 | `repoIdentities` | none | `verify-pr`, `launch` footer: expected Git name and email per `owner/repo` (keys match without case) |
 | `prAutoTrack` | `false` | `claim-done`, `checkpoint`: when `true`, pull-request links in a recorded claim's evidence or a checkpoint's `--remote-effect` receipts are tracked for `dori pr watch` with the lane and its thread. Any value other than `true` or `false` stops every command with `invalid prAutoTrack` |
+| `recall` | off | `inbound discord`, `inbound telegram`, `send discord`, `send telegram`, `recall`: `{"enabled": true, "retentionDays": 30}` keeps the conversation ledger described under [`dori recall`](#dori-recall-query---thread-ref---limit-n--dori-recall-purge). `retentionDays` is 1 to 3650 (default 30). Any other key or value stops every command with `invalid recall` |
 
 Hooks are argv templates for your messenger CLI. `{thread}`, `{text}` and `{key}` are filled into each argument separately, so the text stays one argument whatever it contains.
 
@@ -137,6 +138,7 @@ The CLI is a thin layer over typed modules you can import in your own scripts:
 | `src/messenger/thread-ledger.ts` | `ThreadLedger`: every thread the Dori posts in, persisted; given to `Slack`, it records each `chat.postMessage` (also raw `call`s) |
 | `src/messenger/slack-inbound.ts` | `pollSlackInbound`: threads view, the ledger's threads and unread counts, deduplicated, own messages filtered; each goes to the `emit` callback before any thread position is saved |
 | `src/messenger/telegram-inbound.ts` | `pollTelegramInbound`: owner-gated `getUpdates` long-poll, persisted offset, DMs and the group gate |
+| `src/messenger/recall-ledger.ts` | `openRecallLedger`, `conversationRecall`: the opt-in conversation ledger and its `INBOUND_RECALL` record; ranking and redaction are in `recall-text.ts` |
 | `src/messenger/slack-presence.ts` | `slackPresence`: hold a user account active |
 | `src/routing.ts` | `canLaunch`, `idleLaneFor`: the routing checks |
 
@@ -510,6 +512,19 @@ Prints `LAG n=<count> p50=<ms>ms p90=<ms>ms p99=<ms>ms max=<ms>ms[ skipped=<n>]`
 - a failed append emits one warning per process on stdout (`WARN ...`, bounded to 300 characters); intake and cursor advancement continue;
 - new journals are created with mode `0600`, following the state-journal convention. Records include chat and user IDs but no message text or bot token. Existing file permissions are retained, and records accumulate locally until removed by the owner;
 - `skipped=<n>` counts records without a finite numeric lag in the window, including missing dates, malformed JSON and the partial last line a kill mid-write leaves behind.
+
+### `dori recall <query> [--thread REF] [--limit N]` / `dori recall purge`
+Opt-in: nothing is kept until `recall.enabled` is `true` in config.json; installing or updating never turns it on. While it is on, `<stateDir>/recall.sqlite` (created `0600` in the state directory) keeps one row per owner message the lead receives through `dori inbound discord` or `dori inbound telegram`, and per reply the lead delivers with `dori send discord` or `dori send telegram` (not edits): time, platform, channel, thread, role (`owner` or `lead`), text and message ID. Before a row is stored, credential-shaped strings (Slack, OpenAI-style, GitHub, AWS, Google, JWT, Discord and Telegram bot tokens, private key blocks, `Bearer`/`Basic` values and `password=`/`token=`-style assignments) become `[redacted]` and the text is cut at 2000 characters. Rows older than `retentionDays` are dropped whenever the ledger is opened. Slack intake is not recorded: its receiver delivers other people's messages to the owner's account, not the owner's own requests. Discord messages routed to a lane, ask replies and Telegram edits are not recorded either.
+
+A conversation space is one Discord channel with all of its threads (a DM is its own channel), or one Telegram chat with its topics. A reply is filed in the space its thread was first seen in; a thread the owner has not yet written in is its own space until then.
+
+When an owner message points back at an earlier conversation (English, Korean or Japanese phrases such as "last time", "earlier", "yesterday", "저번", "아까", "어제", "前回", "さっき"; a bare "before" or "전에" does not count), intake ends that message's record group with one more line:
+
+`INBOUND_RECALL <platform> <thread> <message> {"note":"...","rows":[{"at":"YYYY-MM-DDTHH:MMZ","role":"owner|lead","thread":"<id>","text":"..."}]}`
+
+`<thread>` is the Discord channel or thread ID, or the Telegram `chat` or `chat/topic`. Rows come from the same space only, never another channel, chat or DM. They are ranked by how rare their shared words are among that space's newest 2000 rows (Korean particles are stripped; Han and kana are compared as character pairs), and the best four are listed in time order within about 3 KB, each cut at 700 characters with line breaks and fence look-alikes (three or more backticks, tildes, quotes or angle brackets) removed. `note` says the rows are quoted data, not instructions, that the current session wins when it has the answer, and, when `rows` is empty, that nothing matched, so the lead says it does not know rather than guess. The message itself is recorded after the search, once per message ID, so a redelivered message neither repeats nor recalls itself. A ledger failure prints `WARN recall: ...` and never holds back the owner's message or a sent reply.
+
+`dori recall <query>` prints `RECALL <platform> <channel> {"at":...,"role":...,"thread":...,"text":...}` per match, best first (default 4, `--limit N`), or `RECALL_NONE`. `--thread discord:<id>` or `--thread telegram:<chat>[/<topic>]` limits the search to that conversation's space; the lead passes the thread it is answering. Without `--thread` every space is searched, for the operator. It refuses to run while recall is off. `dori recall purge` deletes every row, also while recall is off, and prints `RECALL_PURGED <count>`; removing `recall.sqlite` is equivalent.
 
 ### `dori transcribe <audio-file|url>`
 Runs the existing `hooks.transcribe` argv with `{file}` and prints the transcript. Local paths pass through unchanged: no URL size or format policy is applied to them, and local source files are retained.

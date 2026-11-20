@@ -49,7 +49,11 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
         history.push(message("101", "10", "first owner text"), message("102", "11", "private other user"));
       if (polls === 2) {
         history.push(
-          { ...message("103", "10", "owner reply"), type: 19, message_reference: { message_id: "101" } },
+          {
+            ...message("103", "10", scenario === "recall" ? "what was the first owner text earlier?" : "owner reply"),
+            type: 19,
+            message_reference: { message_id: "101" },
+          },
           message("104", "99", "private self bot", true),
         );
       }

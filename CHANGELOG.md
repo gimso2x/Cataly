@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Opt-in conversation recall (`recall.enabled`, default off): Discord and Telegram owner messages and the lead's `dori send` replies are kept in a private `<stateDir>/recall.sqlite` with credential-shaped strings redacted, a 2000-character cap and `retentionDays` (default 30). An owner message that points back at an earlier conversation (English, Korean or Japanese phrases) ends its record group with `INBOUND_RECALL`: up to four rows of the same channel or chat ranked by word rarity, within about 3 KB, labelled as data rather than instructions, and an explicit empty result when nothing matched. `dori recall <query> [--thread REF]` searches on demand and `dori recall purge` clears the ledger. Slack intake is not recorded.
+
 - Bound native OMP keeps pending custom notices with their original transcript across `/new`, `/clear`, and session switches. An unchanged reload retains eligible notices and passive next-turn payloads without restarting old provider work; a changed transcript drops them. External delivery waits for transition and rollback reconciliation, and CI exercises ownership against the bound native source.
 
 - Append compact role guidance once per root Dori/lane prompt, preserving existing host and ULW composition. Plain and child sessions are unchanged, and lane bookkeeping remains Sol-only.
