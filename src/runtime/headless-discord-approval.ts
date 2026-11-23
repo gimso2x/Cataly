@@ -107,7 +107,12 @@ export class DiscordApprovals {
     this.#closed = true;
     for (const card of this.#cards.values()) card.abort();
     this.#cards.clear();
-    await Promise.race([Promise.allSettled([...this.#pending]), Bun.sleep(4_000)]);
+    if (this.#pending.size === 0) return;
+    const grace = Promise.withResolvers<void>();
+    // Unreferenced: a stalled Discord edit must not keep the exiting supervisor alive.
+    const timer = setTimeout(grace.resolve, 4_000).unref();
+    await Promise.race([Promise.allSettled([...this.#pending]), grace.promise]);
+    clearTimeout(timer);
   }
 
   async #present(dialog: HeadlessDialog, signal: AbortSignal): Promise<void> {
