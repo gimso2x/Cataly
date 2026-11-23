@@ -1,3 +1,4 @@
+import { type DiscordApprovals, discordApprovals } from "./headless-discord-approval.ts";
 import { HeadlessEvents } from "./headless-events.ts";
 import { beginNativeGoal, launchModelFromArgv } from "./headless-launch-model.ts";
 import { answerFrame, type HeadlessObservation, type HeadlessRequest } from "./headless-protocol.ts";
@@ -14,6 +15,7 @@ class Broker {
   private state: NativeState | undefined;
   private stateRead: Promise<NativeState | undefined> | undefined;
   private rpc: HeadlessRpc | undefined;
+  private approvals: DiscordApprovals | undefined;
   private expectedModel: string | undefined;
   private detail: string | undefined;
   private mutation = false;
@@ -31,7 +33,10 @@ class Broker {
       cwd,
       ref.id,
       overlay,
-      (frame) => this.events.record(frame),
+      (frame) => {
+        this.events.record(frame);
+        this.approvals?.sync();
+      },
       () => {
         this.fault = true;
         if (!this.stopping) this.detail = "OMP RPC stream disconnected or became untrustworthy";
@@ -40,13 +45,21 @@ class Broker {
     this.rpc = rpc;
     try {
       const role = this.harnessRole;
-      this.bound = await proveNativeRole(
+      const bound = await proveNativeRole(
         rpc,
         () => this.refresh(),
         start.expectedResumeId,
         role ? { role, refId: ref.id } : undefined,
       );
-      return await rpc.exited;
+      this.bound = bound;
+      const expectedSessionId = bound.sessionId;
+      this.approvals = discordApprovals(
+        start.env,
+        { refId: ref.id, role, sessionId: expectedSessionId },
+        this.dialogs,
+        (requestId, value) => this.handle({ op: "answer", expectedSessionId, requestId, answer: { value } }),
+      );
+      return await rpc.exited.finally(() => this.approvals?.close());
     } catch (error) {
       this.detail = error instanceof Error ? error.message : String(error);
       // A stalled native exit is still live; do not publish a stopped receipt while it owns the session.
@@ -163,6 +176,7 @@ class Broker {
       if (!dialog || !frame) throw new Error("no matching native dialog or unsupported answer");
       // No answer replay after attempting the write; RPC UI replies do not have an ack.
       this.dialogs.delete(dialog.id);
+      this.approvals?.sync();
       try {
         rpc.send(frame);
       } catch {
