@@ -39,7 +39,7 @@ export async function startNativeLane(
         bindCurrent({ policyBinding: binding });
       }
     }
-    const seen = await rt.startNative(ref, native.argv, { ...env, CATALY_LANE_POLICY: binding });
+    const seen = await rt.startNative(ref, native.argv, { ...env, ...native.env, CATALY_LANE_POLICY: binding });
     if (seen.role !== "lane" || seen.cwd !== cwd || !seen.sessionId || !seen.sessionFile)
       throw new Refusal("native lane did not prove the requested role, cwd and session");
     const lane = bindCurrent({ sessionPath: seen.sessionFile });

@@ -23,6 +23,7 @@ import { usageOptionsError } from "./usage-options.ts";
 import type { CommitIdentity } from "./verify-pr-check.ts";
 import type { VoiceSettings } from "./voice/settings.ts";
 import { recallSettingsError, type RecallSettings } from "./messenger/recall-text.ts";
+import { type DiscordApprovals, discordApprovalsError } from "./messenger/discord-approval-config.ts";
 import { checkLanePolicy, type LanePolicy, PolicyError } from "./lane-policy.ts";
 
 export type ArgvTemplate = readonly string[];
@@ -82,6 +83,7 @@ export type CatalyConfig = LaunchConfig & {
   readonly lanePolicy?: LanePolicy;
   readonly recall?: RecallSettings;
   readonly doctor?: DoctorOptions;
+  readonly discordApprovals?: DiscordApprovals; // opt-in: native tool approvals as owner-only Discord buttons
 };
 
 export const defaultConfig = (home = homedir()): CatalyConfig => ({
@@ -177,6 +179,7 @@ export const loadConfig = async (path = configPath(), home = homedir(), env = pr
   const policyError =
     freshnessError(raw.freshness) ??
     recallSettingsError(raw.recall) ??
+    discordApprovalsError(raw.discordApprovals) ??
     usageOptionsError(raw.supervision?.usage, raw.supervision?.usageArgv, raw.quota);
   if (policyError) throw new ConfigError(policyError);
   if (raw.threadDonePolicy !== undefined && !["every-lane", "last-lane"].includes(raw.threadDonePolicy))

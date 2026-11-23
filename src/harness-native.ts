@@ -91,12 +91,14 @@ function scopeCommand(d: Deps, role: "lead" | "duty", argv: readonly string[]): 
  * `resume` lead must prove exactly that session; duty and the loops always start fresh.
  */
 export async function startNativeHarness(d: Deps, rt: HeadlessRuntime, cwd: string, resume?: LeadResume) {
+  const lead = await nativeHarnessCommand(d, "lead");
   const commands = {
-    lead: scopeCommand(d, "lead", (await nativeHarnessCommand(d, "lead")).argv),
+    lead: scopeCommand(d, "lead", lead.argv),
     duty: scopeCommand(d, "duty", (await nativeHarnessCommand(d, "duty")).argv),
   };
   const env = {
     ...harnessLaunchEnv(d),
+    ...lead.env,
     CATALY_STATE_DIR: rt.stateDir,
     CATALY_LANE: "",
     CATALY_LANE_POLICY: "",

@@ -114,20 +114,22 @@ export const agentCommand = (d: Deps, role: "cataly" | "lane"): string =>
 export async function nativeHarnessCommand(
   d: Deps,
   role?: NativeHarnessRole,
-): Promise<{ argv: string[]; lanePolicy: LanePolicy | undefined }> {
+): Promise<{ argv: string[]; lanePolicy: LanePolicy | undefined; env: Record<string, string> }> {
   try {
-    const [{ loadConfig }, { modelLaunchProblem }, { LAUNCH_MODEL_OPTION }] = await Promise.all([
-      import("../skills/cataly-mode/scripts/src/config.ts"),
-      import("../skills/cataly-mode/scripts/src/launch-model.ts"),
-      import("./runtime/headless-launch-model.ts"),
-    ]);
+    const [{ loadConfig }, { modelLaunchProblem }, { LAUNCH_MODEL_OPTION }, { discordApprovalsEnv }] =
+      await Promise.all([
+        import("../skills/cataly-mode/scripts/src/config.ts"),
+        import("../skills/cataly-mode/scripts/src/launch-model.ts"),
+        import("./runtime/headless-launch-model.ts"),
+        import("../skills/cataly-mode/scripts/src/messenger/discord-approval-config.ts"),
+      ]);
     const path = harnessConfigPath(d.store.root);
     const config = await loadConfig(path, undefined, { ...process.env, CATALY_HOME: d.store.root });
     const problem = modelLaunchProblem(config.agentCommand, config.defaultModel, true);
     if (problem) throw new Error(problem);
     const argv = headlessArgv(config.agentCommand, config.defaultModel, role);
     if (!role) argv.push(`${LAUNCH_MODEL_OPTION}${config.defaultModel}`);
-    return { argv, lanePolicy: config.lanePolicy };
+    return { argv, lanePolicy: config.lanePolicy, env: discordApprovalsEnv(config) };
   } catch (error) {
     throw new Refusal(error instanceof Error ? error.message : String(error));
   }

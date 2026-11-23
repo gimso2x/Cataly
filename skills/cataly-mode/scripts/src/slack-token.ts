@@ -6,6 +6,7 @@ import { closeSync, constants, existsSync, fstatSync, lstatSync, openSync, readF
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { catalyLaunchEnv, laneMessengerOverrides } from "../../../../src/release/runtime.ts";
 import { configPath, type CatalyConfig } from "./config.ts";
+import { discordApprovalsEnv } from "./messenger/discord-approval-config.ts";
 
 /** The token file a launcher finds next to its config when CATALY_SLACK_TOKEN_FILE is not set. */
 export const TOKEN_FILE_NAME = "slack-token";
@@ -209,7 +210,7 @@ export const laneTokenEnv = (env: Env, configFile: string): Record<string, strin
 export const laneLaunchEnv = (
   env: Env,
   rawConfig: string,
-  resolved?: Pick<CatalyConfig, "stateDir" | "ompUlwPath">,
+  resolved?: Pick<CatalyConfig, "stateDir" | "ompUlwPath" | "discordApprovals">,
 ): Record<string, string> => {
   const config = resolve(rawConfig);
   if (dirname(config) !== resolve(dirname(rawConfig)))
@@ -224,6 +225,7 @@ export const laneLaunchEnv = (
     ...catalyLaunchEnv(env, osPath, resolved),
     ...laneTokenEnv(env, osPath),
     ...laneMessengerOverrides,
+    ...discordApprovalsEnv(resolved ?? {}),
     ...(env["CATALY_DISCORD_WAKE_SESSION"] === undefined ? {} : { CATALY_DISCORD_WAKE_SESSION: "" }),
     ...(env["CATALY_DISCORD_WAKE_GOAL"] === undefined ? {} : { CATALY_DISCORD_WAKE_GOAL: "" }),
     ...(env["CATALY_DISCORD_WAKE_MODEL"] === undefined ? {} : { CATALY_DISCORD_WAKE_MODEL: "" }),
