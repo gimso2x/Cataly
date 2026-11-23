@@ -381,6 +381,50 @@ An OMP session switch, cancellation, or restart ends the open question. This
 feature posts question text to the configured room; do not select a public
 room for a session that asks about private work.
 
+##### Native tool approvals as Discord buttons (opt-in)
+
+Headless sessions run OMP with `--approval-mode always-ask`, so a write or
+exec tool waits on a native approval prompt. A Discord-driven lead otherwise
+stops silently there until someone runs `cataly-harness answer` locally; OMP's
+critical bash patterns (for example `rm -f /tmp/x`) cannot be pre-allowed by
+`tools.approval`. ASK answers above never approve tools. To answer approvals
+from Discord as well, enable it in this installation's `config.json`:
+
+```json
+{ "discordApprovals": { "enabled": true } }
+```
+
+It is off by default; without it nothing changes. The setting is read when a
+headless lead or lane starts, so restart the harness or lane after changing
+it. When enabled, the headless supervisor of a lead or lane posts each pending
+native approval prompt to the same destination ASK uses (the lead's single
+explicit inbound channel, or the lane's registered thread, while a live
+receiver watches it) and reads the bot token only from
+`$CATALY_HOME/discord-token`. Duty never posts. The card names the tool,
+shows the reason in bold (for example **Critical pattern detected**) and
+the command details, and offers exactly two buttons: the single-call
+**Approve** (or **Approve Once**) and **Deny**.
+
+Boundaries and threat model:
+
+- Only the receiver's configured owner can press the buttons; anyone else gets
+  a private refusal. Text replies never answer an approval.
+- A click answers that one pending prompt once. Session-wide and remembered
+  grants are never offered, and nothing is approved automatically: after 30
+  minutes the card shows that it timed out and the prompt keeps waiting
+  locally.
+- The local answer path keeps working; the first answer wins. When the prompt
+  is answered locally, cancelled, or its session ends, the card closes and
+  later clicks do nothing. A repeated click submits only the first answer.
+- Credential-shaped text in the command (Discord bot tokens, `sk-`, `xoxb-`,
+  `ghp_`, `github_pat_` values, `Authorization:` and `Bearer` values, and
+  `*KEY=`, `*TOKEN=`, `*SECRET=`, `*PASSWORD=` assignments) is masked, and the
+  details are cut at 800 characters. Masking is best effort: **do not use this
+  with a public channel**, since anyone who can read the room sees the
+  commands your agents want to run.
+- Anyone who controls the owner's Discord account can approve the agent's
+  commands. Enable this only where that account is as trusted as local access.
+
 #### Real-time Gateway mode
 
 Add `--gateway` to receive owner messages live instead of on the next poll. The receiver keeps one Gateway connection that subscribes only to `GUILD_MESSAGES`, `DIRECT_MESSAGES` and `MESSAGE_CONTENT`; it sends no presence update. **`MESSAGE_CONTENT` is a privileged intent: enable Message Content Intent for the bot in the Developer Portal**, otherwise Discord closes the connection with code 4014 and intake stops with an error naming it. **`--gateway` ignores `--loop`, including `--loop 0`; it runs until stopped.**

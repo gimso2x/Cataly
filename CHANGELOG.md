@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add opt-in `discordApprovals: { enabled: true }`: native tool approvals of headless lead and lane sessions (including critical bash patterns) are posted to their Discord ASK destination as owner-only single-call **Approve**/**Deny** buttons, with credential masking, no automatic approval and the local answer path unchanged. Off by default. See [the release guide](docs/releases.md#native-tool-approvals-as-discord-buttons-opt-in).
+
 - Remove the herdr and hc terminal runtimes: their adapters, install and release profiles, CI jobs, the hc `cataly remote --on/--via` transport and `cataly harness migrate`. Sessions run on headless OMP by default on macOS and Linux; Tern stays as the optional terminal runtime. A home that still uses herdr or hc (a `runtime` or `sessionRuntime` naming them, open herdr/hc lanes, or historical roles) stops install and upgrade with the [upgrade message](docs/releases.md#upgrading-from-a-terminal-runtime), changing nothing.
 
 - `cataly harness up` on headless OMP resumes the lead session the last `cataly harness stop` closed cleanly; `--fresh` starts a new one. Managed deployment, restart and rollback resume the old lead's session and fail health unless the new lead has that same session, reports the monitors its session wanted before the stop and delivers a fresh intake heartbeat.
