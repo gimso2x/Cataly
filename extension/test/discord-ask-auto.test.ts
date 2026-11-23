@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Registry } from "../../skills/cataly-mode/scripts/src/registry.ts";
 import { DiscordAsk } from "../discord-ask.ts";
-import { automaticDiscordAskRoute, bindAskLane } from "../discord-ask-auto.ts";
+import { automaticDiscordAskRoute } from "../../skills/cataly-mode/scripts/src/messenger/discord-ask-route.ts";
+import { bindAskLane } from "../discord-ask-auto.ts";
 import { until } from "./fake-pi.ts";
 
 const cli = join(import.meta.dir, "../../skills/cataly-mode/scripts/src/cli.ts");

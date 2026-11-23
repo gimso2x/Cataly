@@ -38,7 +38,7 @@ import { isMonitorMessage, SESSION_WIRE } from "../skills/cataly-mode/scripts/sr
 import { selfSession } from "../src/runtime/registry.ts";
 import type { SessionRef } from "../src/runtime/types.ts";
 import { discordAskToken, routeFor } from "./discord-ask.ts";
-import { type AskLane, laneChannel } from "./discord-ask-auto.ts";
+import { type AskLane, laneChannel } from "../skills/cataly-mode/scripts/src/messenger/discord-ask-route.ts";
 import { DiscordLaneReplies, type NativeDelivery, nativeDiscordReceipt } from "./discord-lane-reply.ts";
 import type { CatalyApi, CatalyContext } from "./index.ts";
 

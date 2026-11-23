@@ -78,7 +78,11 @@ import {
 } from "./bootstrap.ts";
 import { RuntimeHealthWriter } from "./deployment-health.ts";
 import { DiscordAsk, routeFor } from "./discord-ask.ts";
-import { type AskLane, automaticDiscordAskRoute, bindAskLane } from "./discord-ask-auto.ts";
+import {
+  type AskLane,
+  automaticDiscordAskRoute,
+} from "../skills/cataly-mode/scripts/src/messenger/discord-ask-route.ts";
+import { bindAskLane } from "./discord-ask-auto.ts";
 import { DiscordLane } from "./discord-lane.ts";
 import { HeadAdmissions } from "./head-admission.ts";
 import { extensionInstallation } from "./installation.ts";
